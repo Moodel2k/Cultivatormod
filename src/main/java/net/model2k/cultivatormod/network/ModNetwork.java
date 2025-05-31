@@ -2,13 +2,16 @@ package net.model2k.cultivatormod.network;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.model2k.cultivatormod.CultivatorMod;
 import net.model2k.cultivatormod.datagen.ModAttachments;
 import net.model2k.cultivatormod.datagen.PlayerData;
+import net.model2k.cultivatormod.entity.ModEntities;
 import net.model2k.cultivatormod.entity.custom.QiSlashEntity;
 import net.model2k.cultivatormod.network.packet.*;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -40,6 +43,7 @@ public class ModNetwork {
                     boolean walkOnWater = packet.getWalkOnWater();
                     boolean canFly = packet.getCanFly();
                     boolean vanished = packet.getVanished();
+                    boolean firstAdvancement = packet.getFirstAdvancement();
                     PlayerStatsClient.setMaxHealth(maxHealth);
                     PlayerStatsClient.setHealth(health);
                     PlayerStatsClient.setQi(qi);
@@ -55,6 +59,7 @@ public class ModNetwork {
                     PlayerStatsClient.setWalkOnWater(walkOnWater);
                     PlayerStatsClient.setCanFly(canFly);
                     PlayerStatsClient.setVanished(vanished);
+                    PlayerStatsClient.setFirstAdvancement(firstAdvancement);
                     PlayerStatsClient.setHasSynced(true);
                 })
         );
@@ -63,10 +68,15 @@ public class ModNetwork {
                 QiSlashPacket.STREAM_CODEC,
                 (packet, context) -> context.enqueueWork(() -> {
                     ServerPlayer player = (ServerPlayer) context.player();
-                    if (player.isAlive()) {
-                        Vec3 look = player.getLookAngle();
-                        QiSlashEntity slash = new QiSlashEntity(player.level(), player, look);
-                        player.level().addFreshEntity(slash);
+                    PlayerData data = player.getData(ModAttachments.PLAYER_DATA);
+                    if(!player.isCreative()){
+                    if (player.isAlive() && data.getQi() - (data.getMaxQi()/10) >= 0) {
+                        fireQiSlash(player, data);
+                        data.setQi(data.getQi() - (data.getMaxQi()/10));
+                        sendSyncPlayerData(player);
+                      }
+                    }else{
+                        fireQiSlash(player, data);
                     }
                 })
         );
@@ -146,8 +156,21 @@ public class ModNetwork {
                 data.getCanDash(),
                 data.getWalkOnWater(),
                 data.getCanFly(),
-                data.getVanished()
+                data.getVanished(),
+                data.getFirstAdvancement()
         );
         player.connection.send(new ClientboundCustomPayloadPacket(packet));
+    }
+    public static void fireQiSlash(ServerPlayer player, PlayerData data){
+        Level level = player.level();
+        Vec3 eyePos = player.getEyePosition();
+        Vec3 lookVec = player.getLookAngle();
+        QiSlashEntity entity = new QiSlashEntity(ModEntities.QI_SLASH.get(), level);
+        entity.setBaseDamage((double)data.getMaxQi() /10);
+        System.out.println(entity.getBaseDamage());
+        entity.setSilent(true);
+        entity.setPos(eyePos.x, eyePos.y, eyePos.z);
+        entity.shoot(lookVec.x, lookVec.y, lookVec.z, 5.0F, 0.0F);
+        level.addFreshEntity(entity);
     }
 }

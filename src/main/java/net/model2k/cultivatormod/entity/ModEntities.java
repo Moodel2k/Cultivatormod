@@ -4,10 +4,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.model2k.cultivatormod.CultivatorMod;
-import net.model2k.cultivatormod.entity.custom.QiSlashEntity;
-import net.model2k.cultivatormod.entity.custom.SeveredZombieHeadEntity;
-import net.model2k.cultivatormod.entity.custom.SlimeEntity;
-import net.model2k.cultivatormod.entity.custom.YangBearEntity;
+import net.model2k.cultivatormod.entity.custom.*;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
@@ -21,10 +18,17 @@ public class ModEntities  {
             ENTITY_TYPES.register("yangbear" , () -> EntityType.Builder.of(YangBearEntity::new, MobCategory.CREATURE)
                     .sized(1f, 1f).build("yangbear"));
     public static final Supplier<EntityType> QI_SLASH =
-            ENTITY_TYPES.register("qislash", () -> EntityType.Builder
-                    .of(QiSlashEntity::new, MobCategory.MISC)
-                    .sized(.5f, .5f)
-                    .build("qislash"));
+            ENTITY_TYPES.register("qi_slash", () ->
+                    EntityType.Builder
+                            .<QiSlashEntity>of(QiSlashEntity::new, MobCategory.MISC)
+                            .sized(0.5f, 0.5f)
+                            .build("qi_slash"));
+    public static final Supplier<EntityType> FIREBALL =
+            ENTITY_TYPES.register("fireball", () ->
+                    EntityType.Builder
+                            .<FireballEntity>of(FireballEntity::new, MobCategory.MISC)
+                            .sized(0.5f, 0.5f)
+                            .build("fireball"));
     public static final Supplier<EntityType<SeveredZombieHeadEntity>> SEVERED_ZOMBIE_HEAD =
             ENTITY_TYPES.register("severed_zombie_head", () -> EntityType.Builder
                     .<SeveredZombieHeadEntity>of(SeveredZombieHeadEntity::new, MobCategory.MISC)

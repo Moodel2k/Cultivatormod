@@ -1,10 +1,12 @@
 package net.model2k.cultivatormod.event;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
@@ -38,6 +40,7 @@ import java.util.List;
 
 @EventBusSubscriber(modid = CultivatorMod.MOD_ID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class ModClientEvents {
+    public static int tick = 0;
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
         if (!PlayerStatsClient.isHasSynced()) return;
@@ -68,21 +71,23 @@ public class ModClientEvents {
         int healthFillWidth = (int) (barWidth * healthRatio);
         gui.fill(barX, healthBarY, barX + barWidth, healthBarY + barHeight, 0xFF333333);
         gui.fill(barX, healthBarY, barX + healthFillWidth, healthBarY + barHeight, 0xFFFF0000);
-        // === Qi Bar (Middle) ===
-        int qi = PlayerStatsClient.getQi();
-        int maxQi = PlayerStatsClient.getMaxQi();
-        float qiRatio = Math.min((float) qi / maxQi, 1.0f);
-        int qiFillWidth = (int) (barWidth * qiRatio);
-        gui.fill(barX, qiBarY, barX + barWidth, qiBarY + barHeight, 0xFF333333);
-        gui.fill(barX, qiBarY, barX + qiFillWidth, qiBarY + barHeight, 0xFFFFFF00);
-        // === Spirit Bar (Top) ===
-        int spirit = PlayerStatsClient.getSpiritPower();
-        int maxSpirit = PlayerStatsClient.getMaxSpiritPower();
-        float spiritRatio = Math.min((float) spirit / maxSpirit, 1.0f);
-        int spiritFillWidth = (int) (barWidth * spiritRatio);
-        gui.fill(barX, spiritBarY, barX + barWidth, spiritBarY + barHeight, 0xFF333333);
-        gui.fill(barX, spiritBarY, barX + spiritFillWidth, spiritBarY + barHeight, 0xFF00FFFF);
-        // === Experience Level (Left of Health Bar) ===
+        if(PlayerStatsClient.getFirstAdvancement()) {
+            // === Qi Bar (Middle) ===
+            int qi = PlayerStatsClient.getQi();
+            int maxQi = PlayerStatsClient.getMaxQi();
+            float qiRatio = Math.min((float) qi / maxQi, 1.0f);
+            int qiFillWidth = (int) (barWidth * qiRatio);
+            gui.fill(barX, qiBarY, barX + barWidth, qiBarY + barHeight, 0xFF333333);
+            gui.fill(barX, qiBarY, barX + qiFillWidth, qiBarY + barHeight, 0xFFFFFF00);
+            // === Spirit Bar (Top) ===
+            int spirit = PlayerStatsClient.getSpiritPower();
+            int maxSpirit = PlayerStatsClient.getMaxSpiritPower();
+            float spiritRatio = Math.min((float) spirit / maxSpirit, 1.0f);
+            int spiritFillWidth = (int) (barWidth * spiritRatio);
+            gui.fill(barX, spiritBarY, barX + barWidth, spiritBarY + barHeight, 0xFF333333);
+            gui.fill(barX, spiritBarY, barX + spiritFillWidth, spiritBarY + barHeight, 0xFF00FFFF);
+            // === Experience Level (Left of Health Bar) ===
+        }
         int experienceLevel = mc.player.experienceLevel;
         int experienceLevelX = barX - 20;
         int experienceLevelY = healthBarY + (barHeight / 2) - 4;
@@ -153,34 +158,6 @@ public class ModClientEvents {
         }
     }
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
-        if (mc.player.getPersistentData().contains("qiSlashCooldown")) {
-            int cooldown = mc.player.getPersistentData().getInt("qiSlashCooldown");
-            if (cooldown > 0) {
-                mc.player.getPersistentData().putInt("qiSlashCooldown", cooldown - 1);
-            }
-        } else {
-            mc.player.getPersistentData().putInt("qiSlashCooldown", 0);  // Initialize the counter
-        }
-        if (ModKeyBinds.QI_SLASH_KEY.consumeClick()) {
-            int cooldown = mc.player.getPersistentData().getInt("qiSlashCooldown");
-            if (cooldown == 0) {
-                Vec3 direction = mc.player.getLookAngle();
-                QiSlashPacket packet = new QiSlashPacket(direction);
-                ClientPacketListener connection = mc.getConnection();
-                if (connection != null) {
-                    connection.send(packet);
-                    System.out.println("Sent QiSlashPacket to server");
-                }
-                mc.player.getPersistentData().putInt("qiSlashCooldown", 20);
-            } else {
-                System.out.println("QiSlash on cooldown: " + cooldown + " ticks remaining.");
-            }
-        }
-    }
-    @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Pre event) {
         Player player = event.getEntity();
         if (!(player instanceof LocalPlayer)) return;
@@ -191,8 +168,13 @@ public class ModClientEvents {
         event.setNewFovModifier(Minecraft.getInstance().options.fov().get().floatValue());
     }
     @SubscribeEvent
+    public static void tick(PlayerTickEvent.Post event){
+        tick++;
+    }
+    @SubscribeEvent
     public static void inputEvent(InputEvent.Key event) {
         Player player = Minecraft.getInstance().player;
+        Minecraft mc = Minecraft.getInstance();
         if (player == null || !player.level().isClientSide()) return;
         if (ModKeyBinds.SPEED_TOGGLE_KEY.consumeClick()) {
             ClientPacketListener connection = Minecraft.getInstance().getConnection();
@@ -220,30 +202,31 @@ public class ModClientEvents {
                 }
             }
         }
+        if (ModKeyBinds.QI_SLASH_KEY.consumeClick() && tick >= 20) {
+                Vec3 direction = mc.player.getLookAngle();
+                QiSlashPacket packet = new QiSlashPacket(direction);
+                ClientPacketListener connection = mc.getConnection();
+                if (connection != null) {
+                    connection.send(packet);
+                    tick = 0;
+            }
+        }
     }
     @SubscribeEvent
-    public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
-//     if(!(event.getEntity() instanceof AbstractClientPlayer)){
-//         return;
-//     }
-//     if (PlayerStatsClient.getVanished()) {
-//             RenderSystem.enableBlend();
-//             RenderSystem.defaultBlendFunc();
-//             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 0.5f); // 50% transparency
-//             System.out.println("Applying transparency for staff target.");
-//     } else {
-//         Minecraft.getInstance().player.setInvisible(false);
-//         RenderSystem.defaultBlendFunc();
-//         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F); // Full opacity
-//         RenderSystem.disableBlend();
-//     }
- }
+    public static void onRenderPlayerPre(RenderPlayerEvent.Post event) {
+   if(!(event.getEntity() instanceof AbstractClientPlayer player)){return;}
+   if(PlayerStatsClient.getVanished() && !player.hasPermissions(4)){
+       Minecraft.getInstance().player.setInvisible(true);
 
+   } else {
+       Minecraft.getInstance().player.setInvisible(false);
+   }
+}
     private static void displayLookedAtInfo(Minecraft mc, PoseStack poseStack, int screenWidth) {
         if (mc.player != null && mc.level != null) {
             Vec3 eyePos = mc.player.getEyePosition(1.0F);
             Vec3 lookVec = mc.player.getViewVector(1.0F);
-            Vec3 reachVec = eyePos.add(lookVec.scale(2.5D));
+            Vec3 reachVec = eyePos.add(lookVec.scale(3.0D));
             BlockHitResult hit = mc.level.clip(new ClipContext(eyePos, reachVec, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
             Component text = null;
             if (hit.getType() == HitResult.Type.BLOCK) {

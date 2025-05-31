@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cultivatormod:baoding_balls"
+    },
+    "title": {
+      "translate": "advancements.baoding_balls.title"
+    },
+    "description": {
+      "translate": "advancements.baoding_balls.descr"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "first_minor_realm_0": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "cultivatormod:cultivatormodtab/root"
+}

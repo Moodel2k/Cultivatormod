@@ -2,6 +2,7 @@ package net.model2k.cultivatormod.entity.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -10,10 +11,12 @@ import net.model2k.cultivatormod.CultivatorMod;
 import net.model2k.cultivatormod.entity.custom.QiSlashEntity;
 import org.jetbrains.annotations.NotNull;
 
-public class QiSlashRenderer extends MobRenderer<QiSlashEntity, QiSlashModel<QiSlashEntity>> {
-    private static final ResourceLocation TEXTURE =  ResourceLocation.fromNamespaceAndPath(CultivatorMod.MOD_ID, "textures/entity/qislash/qislash.png");
+public class QiSlashRenderer extends EntityRenderer<QiSlashEntity> {
+    private static final ResourceLocation TEXTURE =  ResourceLocation.fromNamespaceAndPath(CultivatorMod.MOD_ID, "textures/entity/qi_slash/qi_slash.png");
+    private final QiSlashModel model;
     public QiSlashRenderer(EntityRendererProvider.Context context) {
-        super(context, new QiSlashModel<>(context.bakeLayer(QiSlashModel.LAYER_LOCATION)), 0.25f);
+        super(context);
+        model = new QiSlashModel(context.bakeLayer(QiSlashModel.LAYER_LOCATION));
     }
     @Override
     public void render(@NotNull QiSlashEntity entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {

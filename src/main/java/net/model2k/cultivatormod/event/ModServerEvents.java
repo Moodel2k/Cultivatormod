@@ -3,12 +3,16 @@ package net.model2k.cultivatormod.event;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -17,7 +21,12 @@ import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.model2k.cultivatormod.CultivatorMod;
@@ -28,6 +37,7 @@ import net.model2k.cultivatormod.entity.custom.SeveredZombieHeadEntity;
 import net.model2k.cultivatormod.item.ModItems;
 import net.model2k.cultivatormod.network.ModNetwork;
 import net.model2k.cultivatormod.network.packet.ZombieBeheadPacket;
+import net.model2k.cultivatormod.procedures.BaodingBallsTrigger;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.CommandEvent;
@@ -37,6 +47,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.*;
 
@@ -56,40 +67,11 @@ public class ModServerEvents {
         if (!player.level().isClientSide) {
             PlayerData data = player.getData(ModAttachments.PLAYER_DATA);
             String prefix = data.getChatPrefix();
-            if(Immortals.contains(player.getName().getString()) && !player.getTags().contains("staff")){
-                player.addTag("staff");
-                player.addTag("chat");
-                player.sendSystemMessage(Component.literal("You are a known Immortal. You have been granted staff and chat tags at birth."));
-            }
-            if (!data.getFirstQiType()) {
-                data.setFirstQiType(true);
-                Map<String, Boolean> qiTypes = data.getAllQiTypes();
-                List<String> availableQiTypes = qiTypes.entrySet().stream()
-                        .filter(entry -> !entry.getValue())
-                        .map(Map.Entry::getKey)
-                        .toList();
-                if (!availableQiTypes.isEmpty()) {
-                    Random rand = new Random();
-                    String selectedQiType = availableQiTypes.get(rand.nextInt(availableQiTypes.size()));
-                    data.setQiType(selectedQiType, true);
-                    player.sendSystemMessage(Component.literal("You start with " + selectedQiType));
-                }
-            }
-            if (data.getQiType("Water Qi")) {
-                Objects.requireNonNull(player.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY)).setBaseValue(Integer.MAX_VALUE);
-                Objects.requireNonNull(player.getAttribute(Attributes.OXYGEN_BONUS)).setBaseValue(Integer.MAX_VALUE);
-                data.setWalkOnWater(true);
-            }
-            if (data.getQiType("Fire Qi")) {
-                Objects.requireNonNull(player.getAttribute(Attributes.BURNING_TIME)).setBaseValue(0);
-            }
-            if (!player.level().isClientSide && data.getCanFly()) {
-                player.getAbilities().mayfly = true;
-                player.onUpdateAbilities();
-            }
-            if (data.getSpeed() > 0) {
-                data.applySpeedToPlayer(player);
-            }
+            grantTagsToImmortals(player);
+            grantWaterQiBenefits(player, data);
+            grantFireQiBenefits(player,data);
+            grantPlayerFlight(player, data);
+            grantSpeedToPlayer(player, data);
         }
         ModNetwork.sendSyncPlayerData(player);
     }
@@ -97,9 +79,9 @@ public class ModServerEvents {
     private static void livingDamage(LivingDamageEvent.Pre event) {
         DamageSource source = event.getSource();
         int damage = (int) event.getOriginalDamage();
-         if(event.getSource().getDirectEntity() instanceof ServerPlayer player && !player.level().isClientSide){
+         if(source.getDirectEntity() instanceof ServerPlayer player && !player.level().isClientSide){
             long day = player.level().getGameTime() / 24000L;
-            PlayerData data = event.getSource().getDirectEntity().getData(ModAttachments.PLAYER_DATA);
+            PlayerData data = player.getData(ModAttachments.PLAYER_DATA);
             if (data.getRace("Werewolf")) {
                 if(day % 8 == 0) {
                     event.setNewDamage(event.getOriginalDamage() + data.getMaxQi());
@@ -229,6 +211,11 @@ public class ModServerEvents {
             PlayerData data = player.getData(ModAttachments.PLAYER_DATA);
             data.charge(player);
             data.regen(player);
+            BaodingBallsTrigger.execute(event.getEntity());
+            if(player.getAdvancements().getOrStartProgress(player.server.getAdvancements().get(ResourceLocation.parse("cultivatormod:cultivatormodtab/baoding_balls"))).isDone()){
+                data.setFirstAdvancement(true);
+                ModNetwork.sendSyncPlayerData(player);
+            }
             if(player.getFoodData().needsFood()){
                 player.getFoodData().setFoodLevel(20);
                 player.getFoodData().setSaturation(5);
@@ -239,7 +226,7 @@ public class ModServerEvents {
     private static void onPlayerDealDamage(LivingDamageEvent.Pre event) {
         DamageSource source = event.getSource();
         ResourceLocation damageTypeId = source.typeHolder().unwrapKey().orElseThrow().location();
-        if (damageTypeId.getPath().equals("player_attack")) { // this usually means melee attack
+        if (damageTypeId.getPath().equals("player_attack")) {
             if (source.getEntity() instanceof Player player && !player.level().isClientSide) {
                 PlayerData data = player.getData(ModAttachments.PLAYER_DATA);
                 float strengthMultiplier = data.getStrength() * 1.1f;
@@ -340,4 +327,77 @@ public class ModServerEvents {
                 data.applyJumpBoost(player);
             }
         }
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        Level level = (Level) event.getLevel();
+        BlockPos pos = event.getPos();
+        Player player = event.getPlayer();
+        BlockState state = level.getBlockState(pos);
+        if (!(player.getMainHandItem().getItem() instanceof AxeItem item)) return;
+        if (!state.is(BlockTags.LOGS)) return;
+        BlockState below = level.getBlockState(pos.below());
+        if (below.is(BlockTags.LOGS)) return;
+        breakTree(level, pos, player,player.getMainHandItem());
+    }
+    //Custom Methods
+    private static void grantTagsToImmortals(ServerPlayer player){
+        if(Immortals.contains(player.getName().getString()) && !player.getTags().contains("staff")){
+            player.addTag("staff");
+            player.addTag("chat");
+            player.sendSystemMessage(Component.literal("You are a known Immortal. You have been granted staff and chat tags at birth."));
+        }
+    }
+    private static void grantWaterQiBenefits(ServerPlayer player,PlayerData data){
+        if (data.getQiType("Water Qi")) {
+            Objects.requireNonNull(player.getAttribute(Attributes.WATER_MOVEMENT_EFFICIENCY)).setBaseValue(Integer.MAX_VALUE);
+            Objects.requireNonNull(player.getAttribute(Attributes.OXYGEN_BONUS)).setBaseValue(Integer.MAX_VALUE);
+            data.setWalkOnWater(true);
+        }
+    }
+    private static void grantFireQiBenefits(ServerPlayer player, PlayerData data){
+        if (data.getQiType("Fire Qi")) {
+            Objects.requireNonNull(player.getAttribute(Attributes.BURNING_TIME)).setBaseValue(0);
+        }
+    }
+    private static void grantPlayerFlight(ServerPlayer player, PlayerData data){
+        if (!player.level().isClientSide && data.getCanFly()) {
+            player.getAbilities().mayfly = true;
+            player.onUpdateAbilities();
+        }
+    }
+    private static void grantSpeedToPlayer(ServerPlayer player, PlayerData data){
+        if (data.getSpeed() > 0) {
+            data.applySpeedToPlayer(player);
+        }
+    }
+    public static void breakTree(Level level, BlockPos origin, Player player, ItemStack tool) {
+        Set<BlockPos> visited = new HashSet<>();
+        Queue<BlockPos> queue = new LinkedList<>();
+        queue.add(origin);
+        Block originBlock = level.getBlockState(origin).getBlock();
+        while (!queue.isEmpty()) {
+            BlockPos current = queue.poll();
+            if (visited.contains(current)) continue;
+            visited.add(current);
+            BlockState state = level.getBlockState(current);
+            Block block = state.getBlock();
+            boolean isLog = block instanceof RotatedPillarBlock;
+            if (isLog) {
+                if (!level.isClientSide) {
+                    level.destroyBlock(current, true);
+                    tool.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
+                }
+                for (Direction dir : Direction.values()) {
+                    BlockPos neighbor = current.relative(dir);
+                    if (!visited.contains(neighbor)) {
+                        BlockState neighborState = level.getBlockState(neighbor);
+                        Block neighborBlock = neighborState.getBlock();
+                        if (neighborBlock == originBlock || neighborState.is(BlockTags.LEAVES)) {
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

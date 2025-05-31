@@ -17,17 +17,17 @@ public class GameModeAbbreviatorCommand {
                         .executes(this::gmc)
         );
         dispatcher.register(
-                Commands.literal("s")
+                Commands.literal("gms")
                         .requires(source -> source.isPlayer() && source.getPlayer().getTags().contains("staff")) // Staff-only
                         .executes(this::s)
         );
         dispatcher.register(
-                Commands.literal("sp")
+                Commands.literal("gmsp")
                         .requires(source -> source.isPlayer() && source.getPlayer().getTags().contains("staff")) // Staff-only
                         .executes(this::sp)
         );
         dispatcher.register(
-                Commands.literal("a")
+                Commands.literal("gma")
                         .requires(source -> source.isPlayer() && source.getPlayer().getTags().contains("staff")) // Staff-only
                         .executes(this::a)
         );

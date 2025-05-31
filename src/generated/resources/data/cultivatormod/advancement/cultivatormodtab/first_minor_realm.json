@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "id": "cultivatormod:blood_from_earth"
+    },
+    "title": {
+      "translate": "advancements.first_minor_realm.title"
+    },
+    "description": {
+      "translate": "advancements.first_minor_realm.descr"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "first_minor_realm_0": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "parent": "cultivatormod:cultivatormodtab/baoding_balls"
+}

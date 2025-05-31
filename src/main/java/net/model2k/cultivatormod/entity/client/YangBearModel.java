@@ -64,7 +64,6 @@ public class YangBearModel extends HierarchicalModel<YangBearEntity> {
     public void setupAnim(YangBearEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
         this.root().getAllParts().forEach(ModelPart::resetPose);
         this.animateWalk(YangBearAnimations.Walking, limbSwing, limbSwingAmount, 2f, 2.5f);
-        this.animate(entity.idleAnimationState, YangBearAnimations.Idle, ageInTicks, 1f);
         applyHeadRotation(netHeadYaw, headPitch);
     }
     private void applyHeadRotation(float pNetHeadYaw, float pHeadPitch) {

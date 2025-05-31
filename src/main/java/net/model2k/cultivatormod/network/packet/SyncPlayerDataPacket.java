@@ -11,8 +11,8 @@ public class SyncPlayerDataPacket implements CustomPacketPayload {
     public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(CultivatorMod.MOD_ID, "sync_player_data");
     public static final Type<SyncPlayerDataPacket> TYPE = new Type<>(ID);
     private final int maxHealth, health, qi, maxQi, spiritPower, maxSpiritPower, speed, jump, dash, jumpLevel, speedLevel;
-    private final boolean walkOnWater, canDash,canFly, vanished;
-    public SyncPlayerDataPacket(int maxHealth, int health, int qi, int maxQi, int spiritPower, int maxSpiritPower,  int speed, int jump,int dash, int jumpLevel, int speedLevel, boolean canDash,boolean walkOnWater, boolean canFly, boolean vanished ) {
+    private final boolean walkOnWater, canDash,canFly, vanished,firstAdvancement;
+    public SyncPlayerDataPacket(int maxHealth, int health, int qi, int maxQi, int spiritPower, int maxSpiritPower,  int speed, int jump,int dash, int jumpLevel, int speedLevel, boolean canDash,boolean walkOnWater, boolean canFly, boolean vanished, boolean firstAdvancement ) {
         this.maxHealth = maxHealth;
         this.health = health;
         this.qi = qi;
@@ -28,6 +28,7 @@ public class SyncPlayerDataPacket implements CustomPacketPayload {
         this.walkOnWater = walkOnWater;
         this.canFly = canFly;
         this.vanished = vanished;
+        this.firstAdvancement = firstAdvancement;
     }
     public static void encode(SyncPlayerDataPacket msg, FriendlyByteBuf buf) {
         buf.writeInt(msg.maxHealth);
@@ -45,10 +46,11 @@ public class SyncPlayerDataPacket implements CustomPacketPayload {
         buf.writeBoolean(msg.walkOnWater);
         buf.writeBoolean(msg.canFly);
         buf.writeBoolean(msg.vanished);
+        buf.writeBoolean(msg.firstAdvancement);
     }
     public static SyncPlayerDataPacket decode(FriendlyByteBuf buf) {
         return new SyncPlayerDataPacket(buf.readInt(), buf.readInt(),buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-                buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean());
+                buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean());
     }
     public static final StreamCodec<FriendlyByteBuf, SyncPlayerDataPacket> STREAM_CODEC = StreamCodec.of(
             (buf, packet) -> {
@@ -67,9 +69,10 @@ public class SyncPlayerDataPacket implements CustomPacketPayload {
                 buf.writeBoolean(packet.walkOnWater);
                 buf.writeBoolean(packet.canFly);
                 buf.writeBoolean(packet.vanished);
+                buf.writeBoolean(packet.firstAdvancement);
             },
             buf -> new SyncPlayerDataPacket(buf.readInt(), buf.readInt(),buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),
-                    buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean()));
+                    buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readInt(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean(),buf.readBoolean()));
     public int getMaxHealth() {
         return maxHealth;
     }
@@ -107,6 +110,7 @@ public class SyncPlayerDataPacket implements CustomPacketPayload {
     public boolean getCanDash(){return canDash;}
     public boolean getCanFly(){return canFly;}
     public boolean getVanished(){return vanished;}
+    public boolean getFirstAdvancement(){return firstAdvancement;}
     @Override
     public @NotNull Type<SyncPlayerDataPacket> type() {
         return TYPE;

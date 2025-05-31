@@ -103,6 +103,10 @@
 
   "entity.cultivatormod.yangbear": "Yang bear",
 
-  "advancement.cultivatormod.minor_breakthrough.title": "Minor Breakthrough",
-  "advancement.cultivatormod.minor_breakthrough.desc": "Reach the second Minor Realm"
+  "advancements.cultivatormodtab.root.title": "Cultivator Journey",
+  "advancements.cultivatormodtab.root.description": "Begin your path as a cultivator",
+  "advancements.baoding_balls.title" : "First Step",
+  "advancements.baoding_balls.descr" : "Aquire Baoding Balls",
+  "advancements.first_minor_realm.title": "Minor Breakthrough",
+  "advancements.first_minor_realm.descr": "Break through to the second Minor Realm"
 }

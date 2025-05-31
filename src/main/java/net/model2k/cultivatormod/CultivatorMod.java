@@ -1,13 +1,10 @@
 package net.model2k.cultivatormod;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderers;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.player.Player;
-import net.model2k.cultivatormod.advancement.ModAdvancements;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.model2k.cultivatormod.block.ModBlocks;
 import net.model2k.cultivatormod.block.entity.ModBlockEntities;
+import net.model2k.cultivatormod.client.ModParticles;
 import net.model2k.cultivatormod.component.ModDataComponents;
 import net.model2k.cultivatormod.datagen.ModAttachments;
 import net.model2k.cultivatormod.effect.ModEffects;
@@ -18,6 +15,7 @@ import net.model2k.cultivatormod.screen.ModMenuTypes;
 import net.model2k.cultivatormod.screen.custom.LowGradeJadeFurnaceScreen;
 import net.model2k.cultivatormod.item.ModCreativeModeTabs;
 import net.model2k.cultivatormod.item.ModItems;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -49,7 +47,7 @@ public class CultivatorMod
         ModMenuTypes.register(modEventBus);
         ModRecipes.register(modEventBus);
         ModAttachments.register(modEventBus);
-        ModAdvancements.register(modEventBus);
+        ModParticles.register(modEventBus);
         modEventBus.addListener(this::addCreative);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
@@ -70,8 +68,11 @@ public class CultivatorMod
             EntityRenderers.register(ModEntities.YANG_BEAR.get(), YangBearRenderer::new);
             EntityRenderers.register(ModEntities.QI_SLASH.get(), QiSlashRenderer::new);
             EntityRenderers.register(ModEntities.SEVERED_ZOMBIE_HEAD.get(), SeveredZombieHeadRenderer::new);
+            EntityRenderers.register(ModEntities.FIREBALL.get(), FireBallRenderer::new);
 
         }
+
+
         @SubscribeEvent
         public static void registerScreens(RegisterMenuScreensEvent event) {
             event.register(ModMenuTypes.LOW_GRADE_JADE_FURNACE_MENU.get(), LowGradeJadeFurnaceScreen::new);

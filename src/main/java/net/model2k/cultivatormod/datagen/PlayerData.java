@@ -5,24 +5,25 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.model2k.cultivatormod.advancement.ModAdvancements;
-import net.model2k.cultivatormod.advancement.RealmAdvancementTrigger;
 import net.model2k.cultivatormod.item.ModItems;
 import net.model2k.cultivatormod.network.ModNetwork;
+import net.model2k.cultivatormod.procedures.MinorRealmTrigger;
+import net.model2k.cultivatormod.procedures.RootTrigger;
 import net.neoforged.neoforge.common.util.INBTSerializable;
 import org.jetbrains.annotations.NotNull;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+
+import java.util.*;
 
 public class PlayerData implements INBTSerializable {
     private int SpeedLevel = 1, JumpStrength = 1,MaxHealth = 20, Health = 20, Defense = 0, Jump = 1, Dash = 0, Speed = 1,  SpiritPower,
             MaxSpiritPower = 10, QiQuality = 0, MinorRealm = 0, MajorRealm = 0, Strength = 0, Qi = 0, MaxQi = 10,tick = 0, QiCharge = 10, SpiritCharge = 10;
     private String ChatPrefix = "", ChatColor = "";
-    private boolean CanFly = false, WalkOnWater = false, CanDash = false, FirstQiType = false, Vanished = false;
+    private boolean CanFly = false, WalkOnWater = false, CanDash = false, FirstQiType = false, Vanished = false, FirstAdvancement = false;
     private final Map<String, Boolean> QiType = new HashMap<>(), Body = new HashMap<>(), Principles = new HashMap<>(), Race = new HashMap<>();
     private final Map<String, String> Homes = new HashMap<>();
     public PlayerData() {
@@ -193,6 +194,12 @@ public class PlayerData implements INBTSerializable {
                 ", Archangel=" + getRace("Archangel") +
                 ", ArchDemon=" + getRace("ArchDemon") +
                 '}';
+    }
+    public boolean getFirstAdvancement() {
+        return this.FirstAdvancement;
+    }
+    public void setFirstAdvancement(boolean advancement) {
+        this.FirstAdvancement = advancement;
     }
     public int getQiCharge() {
         return this.QiCharge;
@@ -419,6 +426,7 @@ public class PlayerData implements INBTSerializable {
         tag.putInt("MaxSpiritPower", getMaxSpiritPower());
         tag.putInt("QiQuality", getQiQuality());
         tag.putBoolean("Vanished", getVanished());
+        tag.putBoolean("FirstAdvancement", getFirstAdvancement());
         for (String key : this.QiType.keySet()) {
             tag.putBoolean("QiType" + key, getQiType(key));
         }
@@ -462,6 +470,7 @@ public class PlayerData implements INBTSerializable {
             setMaxSpiritPower(compoundTag.getInt("MaxSpiritPower"));
             setQiQuality(compoundTag.getInt("QiQuality"));
             setVanished(compoundTag.getBoolean("Vanished"));
+            setFirstAdvancement(compoundTag.getBoolean("FirstAdvancement"));
             for (String key : this.QiType.keySet()) {
                 setQiType(key, compoundTag.getBoolean("QiType" + key));
             }
@@ -493,23 +502,25 @@ public class PlayerData implements INBTSerializable {
                 tick = 0;
             }else if (player.isShiftKeyDown()) {
                 regenStats(player);
-                realmChecker(player);
                 ModNetwork.sendSyncPlayerData((ServerPlayer) player);
+                realmChecker(player);
                 tick = 0;
             }
         }
     }
-    public void regen(Player player){
+    public void regen(Player player) {
+        if (player == null) {return;}
         tick++;
         if (tick >= 200) {
-            if(!player.isShiftKeyDown()) {
-               regenStats(player);
+            if (!player.isShiftKeyDown() && !isPlayerInDanger(player, 10)) {
+                regenStats(player);
                 ModNetwork.sendSyncPlayerData((ServerPlayer) player);
                 tick = 0;
             }
         }
     }
-    public void regenStats(Player player){
+    public void regenStats(Player player) {
+        if (player == null) {return;}
         int newQi = getQi() + qiChargeEfficiency();
         setQi(Math.min(newQi, getMaxQi()));
         int newSpiritPower = getSpiritPower() + spiritPowerChargeEfficiency();
@@ -528,11 +539,21 @@ public class PlayerData implements INBTSerializable {
     public int healEfficiency(Player player) {
         return player.getData(ModAttachments.PLAYER_DATA).getMaxHealth() / 10;
     }
-    public long getTimeSinceLastDamage(Player player) {
-        return player.level().getGameTime() - player.getLastHurtByMobTimestamp();
+    public boolean isPlayerTargeted(Player player, double range) {
+        List<Mob> nearbyMobs = player.level().getEntitiesOfClass(
+                Mob.class,
+                player.getBoundingBox().inflate(range),
+                mob -> mob.getTarget() != null && mob instanceof Monster
+        );
+        for (Mob mob : nearbyMobs) {
+            if (mob.getTarget() == player) {
+                return true;
+            }
+        }
+        return false;
     }
-    public boolean hasTimePassedSinceLastDamage(Player player, int ticks) {
-        return getTimeSinceLastDamage(player) > ticks;
+    public boolean isPlayerInDanger(Player player, double range) {
+        return isPlayerTargeted(player, range);
     }
     public void maxHealth(){
         setHealth(getMaxHealth());
@@ -550,9 +571,8 @@ public class PlayerData implements INBTSerializable {
                     case 0:
                         if (getSpiritPower() >= 25 && getQi() >= 50 && getQiQuality() >= 1) {
                             setMinorRealm(1);
-                            player.sendSystemMessage(Component.literal("You broke through to minor realm " + (getMinorRealm() + 1)));
-                            RealmAdvancementTrigger trigger = ModAdvancements.REALM_ADVANCEMENT_TRIGGER.get();
-                            trigger.trigger((ServerPlayer) player);
+                            RootTrigger.execute(player);
+                            MinorRealmTrigger.execute(player);
                             break;
                         }
                     case 1:
