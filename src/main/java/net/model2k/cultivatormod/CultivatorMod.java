@@ -71,8 +71,6 @@ public class CultivatorMod
             EntityRenderers.register(ModEntities.FIREBALL.get(), FireBallRenderer::new);
 
         }
-
-
         @SubscribeEvent
         public static void registerScreens(RegisterMenuScreensEvent event) {
             event.register(ModMenuTypes.LOW_GRADE_JADE_FURNACE_MENU.get(), LowGradeJadeFurnaceScreen::new);
